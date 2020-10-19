@@ -50,15 +50,16 @@ public class PongGUI extends Application implements IEventHandler {
         KeyCode kc = event.getCode();
         switch (kc) {
             case UP:
+                pong.setSpeedRightPaddle(-PADDLE_SPEED);
                 break;
             case DOWN:
-                // TODO
+                pong.setSpeedRightPaddle(PADDLE_SPEED);
                 break;
             case Q:
-                pong.setSpeedLeftPaddle(PADDLE_SPEED);
+                pong.setSpeedLeftPaddle(-PADDLE_SPEED);
                 break;
             case A:
-                pong.setSpeedLeftPaddle(-PADDLE_SPEED);
+                pong.setSpeedLeftPaddle(PADDLE_SPEED);
                 break;
             default:  // Nothing
         }
@@ -72,7 +73,7 @@ public class PongGUI extends Application implements IEventHandler {
         switch (kc) {
             case UP:
             case DOWN:
-                // TODO
+                pong.setSpeedRightPaddle(0);
                 break;
             case A:
             case Q:
