@@ -1,7 +1,6 @@
 package pong.model;
 
-import java.awt.*;
-
+import java.awt.geom.*;
 import static pong.model.Pong.GAME_HEIGHT;
 
 /*
@@ -15,22 +14,37 @@ public class Paddle implements IPositionable {
     public static final double PADDLE_HEIGHT = 60;
     public static final double PADDLE_SPEED = 5;
 
+    private double speed = 0;
     private double x = 0, y = 0;
-    private final Rectangle rect;
+    private final Rectangle2D rect;
 
     public Paddle(double x, double y) {
         this.x = x;
         this.y = y;
-        rect = new Rectangle((int)x, (int)y, (int)PADDLE_WIDTH, (int)PADDLE_WIDTH);
+        rect = new Rectangle2D.Double(x, y, PADDLE_WIDTH, PADDLE_WIDTH);
     }
 
     public void translateY(double dy) {
         this.y += dy;
     }
 
-    public Rectangle getRect() {
-        rect.setLocation((int)getX(), (int)getY());
+    public void bounce(Ball ball) {
+        double dir = (ball.getRect().getCenterY() - getRect().getCenterY()) / PADDLE_HEIGHT;
+        double angle = dir * 180;
+        ball.setVelocity(-ball.getVelocityX(), angle);
+    }
+
+    public Rectangle2D getRect() {
+        rect.setRect(getX(), getY(), PADDLE_WIDTH, PADDLE_HEIGHT);
         return rect;
+    }
+
+    public void setSpeed(double speed) {
+        this.speed = speed;
+    }
+
+    public double getSpeed() {
+        return speed;
     }
 
     @Override

@@ -1,7 +1,11 @@
 package pong.model;
 
 
+import pong.event.EventBus;
+import pong.event.ModelEvent;
+
 import java.awt.*;
+import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
 import static java.lang.System.out;
@@ -26,17 +30,23 @@ public class Pong {
 
     private final Ball ball;
     private final Paddle leftPaddle, rightPaddle;
-
-    private double leftPaddleSpeed = 0, rightPaddleSpeed = 0;
+    private final Ceiling ceiling;
+    private final Floor floor;
 
     private double prevTime = 0;
 
     public Pong() {
-        ball = new Ball(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+        floor = new Floor(GAME_HEIGHT);
+        ceiling = new Ceiling();
+
+        ball = new Ball(0, 0);
+        ball.reset();
 
         final double paddleY = (GAME_HEIGHT / 2) - (Paddle.PADDLE_HEIGHT / 2);
         leftPaddle = new Paddle(30, paddleY);
         rightPaddle = new Paddle(GAME_WIDTH - Paddle.PADDLE_WIDTH - 30, paddleY);
+
+        prevTime = System.nanoTime();
     }
 
     // --------  Game Logic -------------
@@ -47,59 +57,94 @@ public class Pong {
         double deltaTime = (now - prevTime) * Math.pow(10, -9);
 
         updatePaddles(deltaTime);
-        updateBall(deltaTime);
+        updateBall(now ,deltaTime);
 
         prevTime = now;
     }
 
     private void updatePaddles(double deltaTime) {
-        double nextPosLeft = leftPaddle.getY() + (leftPaddleSpeed * deltaTime);
+        double nextPosLeft = leftPaddle.getY() + (leftPaddle.getSpeed() * deltaTime);
         if (isWithinHeightBounds(nextPosLeft, nextPosLeft + Paddle.PADDLE_HEIGHT)) {
-            leftPaddle.translateY(leftPaddleSpeed);
+            leftPaddle.translateY(leftPaddle.getSpeed());
         }
 
-        double nextPosRight = rightPaddle.getY() + (rightPaddleSpeed * deltaTime);
+        double nextPosRight = rightPaddle.getY() + (rightPaddle.getSpeed() * deltaTime);
         if (isWithinHeightBounds(nextPosRight, nextPosRight + Paddle.PADDLE_HEIGHT)) {
-            rightPaddle.translateY(rightPaddleSpeed);
+            rightPaddle.translateY(rightPaddle.getSpeed());
         }
     }
 
-    private void updateBall(double deltaTime) {
-        double currentPosX = ball.getX();
-        double currentPosY = ball.getY();
-        double nextPosX = currentPosX + Ball.BASE_SPEED * BALL_SPEED_FACTOR * deltaTime;
-        double nextPosY = currentPosY + Ball.BASE_SPEED * BALL_SPEED_FACTOR * deltaTime;
+    private void updateBall(long now, double deltaTime) {
+        updateScore();
 
-        boolean willCollide = doesCollide(leftPaddle, rightPaddle, ball);
+        Point2D nextPos = ball.computeNextPos(deltaTime);
+        ball.setPos(nextPos.getX(), nextPos.getY());
 
-        if (willCollide) {
-            double angle = calcDirection(currentPosX, currentPosY, nextPosX, nextPosY);
-
+        double timeSinceLastHit = (now - timeForLastHit) * Math.pow(10, -9);
+        if (timeSinceLastHit >= 0.01) {
+            if (collide(ball)) {
+                timeForLastHit = now;
+            }
         }
 
-        //ball.bounce(direction)
+//        if (timeSinceLastHit >= 1 && doesCollide(nextPos.getX(), nextPos.getY())) {
+//            double angle = calcDirection(ball.getX(), ball.getY(), nextPos.getX(), nextPos.getY());
+//            ball.setVelocity(ball.getVelocityX() * Math.cos(angle), ball.getVelocityY() * Math.sin(angle));
+//            timeForLastHit = now;
+//        }
+//        else {
+//            ball.setPos(nextPos.getX(), nextPos.getY());
+//        }
     }
 
-    private boolean doesCollide(Paddle left, Paddle right, Ball ball) {
-        boolean collideBounds = !isWithinHeightBounds(ball.getX(), ball.getX() + Ball.HEIGHT);
-        boolean collideLeft = left.getRect().contains(ball.getX(), ball.getY());
-        boolean collideRight = right.getRect().contains(ball.getX(), ball.getY());
-        return collideBounds && collideLeft && collideRight;
+    void updateScore() {
+        if(ball.getX() >= GAME_WIDTH) {
+            incPointsLeft();
+            ball.reset();
+        } else if (ball.getX() <= 0) {
+            incPointsRight();
+            ball.reset();
+        }
     }
 
-    private boolean isWithinHeightBounds(double yMin, double yMax) {
-        return isWithinRange(yMin, 0, GAME_HEIGHT) && isWithinRange(yMax, 0, GAME_HEIGHT);
-    }
+    private boolean collide(Ball ball) {
+        boolean hitFloor = floor.willHit(ball.getY() + Ball.HEIGHT);
+        boolean hitCeiling = ceiling.willHit(ball.getY());
 
-    private boolean isWithinRange(double val, double min, double max) {
-        return (val >= min && val <= max);
+        boolean hitLeftPaddle = leftPaddle.getRect().intersects(ball.getRect());
+        boolean hitRightPaddle = rightPaddle.getRect().intersects(ball.getRect());
+
+        if (hitLeftPaddle) {
+            leftPaddle.bounce(ball);
+        }
+        else if (hitRightPaddle) {
+            rightPaddle.bounce(ball);
+        }
+
+        if (hitCeiling) {
+            ceiling.bounce(ball);
+        }
+        else if (hitFloor) {
+            ceiling.bounce(ball);
+        }
+
+        return hitFloor || hitCeiling || hitLeftPaddle || hitRightPaddle;
     }
 
     private double calcDirection(double currentPosX, double currentPosY, double nextPosX, double nextPosY) {
         double hypotenuse = Math.sqrt(Math.pow(nextPosX - currentPosX, 2) + Math.pow(nextPosY - currentPosY, 2));
         double opposite = Math.sqrt(Math.pow(nextPosY - currentPosY, 2));
-        double angle = Math.sin(hypotenuse/opposite);
+        double angle = Math.sin(hypotenuse/
+                opposite);
         return angle;
+    }
+
+    private boolean isWithinHeightBounds(double yMin, double yMax) {
+        return isWithinRange(yMin, 0, Pong.GAME_HEIGHT) && isWithinRange(yMax, 0, Pong.GAME_HEIGHT);
+    }
+
+    private boolean isWithinRange(double val, double min, double max) {
+        return (val >= min && val <= max);
     }
 
     // --- Used by GUI  ------------------------
@@ -120,13 +165,15 @@ public class Pong {
         return pointsRight;
     }
 
+
     public void setSpeedRightPaddle(double dy) {
-        rightPaddleSpeed = dy;
+        rightPaddle.setSpeed(dy);
     }
 
     public void setSpeedLeftPaddle(double dy) {
-        leftPaddleSpeed = dy;
+        leftPaddle.setSpeed(dy);
     }
+
     public Paddle getLeftPaddle() {
         return leftPaddle;
     }
@@ -137,5 +184,13 @@ public class Pong {
 
     public Ball getBall() {
         return ball;
+    }
+
+    public void incPointsLeft() {
+        this.pointsLeft++;
+    }
+
+    public void incPointsRight() {
+        this.pointsRight++ ;
     }
 }
