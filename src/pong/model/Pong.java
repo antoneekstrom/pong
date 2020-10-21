@@ -1,14 +1,9 @@
 package pong.model;
 
 
-import pong.event.EventBus;
-import pong.event.ModelEvent;
-
-import java.awt.*;
 import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.List;
-import static java.lang.System.out;
 
 /*
  * Logic for the Pong Game
@@ -65,12 +60,12 @@ public class Pong {
     private void updatePaddles(double deltaTime) {
         double nextPosLeft = leftPaddle.getY() + (leftPaddle.getSpeed() * deltaTime);
         if (isWithinHeightBounds(nextPosLeft, nextPosLeft + Paddle.PADDLE_HEIGHT)) {
-            leftPaddle.translateY(leftPaddle.getSpeed());
+            leftPaddle.setY(nextPosLeft);
         }
 
         double nextPosRight = rightPaddle.getY() + (rightPaddle.getSpeed() * deltaTime);
         if (isWithinHeightBounds(nextPosRight, nextPosRight + Paddle.PADDLE_HEIGHT)) {
-            rightPaddle.translateY(rightPaddle.getSpeed());
+            rightPaddle.setY(nextPosRight);
         }
     }
 
@@ -81,7 +76,7 @@ public class Pong {
         ball.setPos(nextPos.getX(), nextPos.getY());
 
         double timeSinceLastHit = (now - timeForLastHit) * Math.pow(10, -9);
-        if (timeSinceLastHit >= 0.01) {
+        if (timeSinceLastHit >= 0.05) {
             if (collide(ball)) {
                 timeForLastHit = now;
             }
@@ -112,12 +107,15 @@ public class Pong {
         boolean hitCeiling = ceiling.willHit(ball.getY());
 
         boolean hitLeftPaddle = leftPaddle.getRect().intersects(ball.getRect());
-        boolean hitRightPaddle = rightPaddle.getRect().intersects(ball.getRect());
+        boolean ballNotBehindLeftPaddle = ball.getX() > leftPaddle.getX();
 
-        if (hitLeftPaddle) {
+        boolean hitRightPaddle = rightPaddle.getRect().intersects(ball.getRect());
+        boolean ballNotBehindRightPaddle = ball.getX() + Ball.WIDTH < rightPaddle.getX() + Paddle.PADDLE_WIDTH;
+
+        if (hitLeftPaddle && ballNotBehindLeftPaddle) {
             leftPaddle.bounce(ball);
         }
-        else if (hitRightPaddle) {
+        else if (hitRightPaddle && ballNotBehindRightPaddle) {
             rightPaddle.bounce(ball);
         }
 

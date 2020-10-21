@@ -13,7 +13,7 @@ public class Ball implements IPositionable {
 
     public static final double WIDTH = 40;
     public static final double HEIGHT = 40;
-    public static final double BASE_SPEED = 250;
+    public static final double BASE_SPEED = 150;
 
     private double hits = 0;
     private double vx = 0, vy = 0;
@@ -37,15 +37,13 @@ public class Ball implements IPositionable {
     public void reset() {
         setPos(GAME_WIDTH / 2, GAME_HEIGHT / 2);
         double angle = Math.random() * 360;
-        setVelocity(BASE_SPEED, BASE_SPEED * Math.sin(angle));
+        double dirX = Math.random() > 0.5 ? 1 : -1;
+        setVelocity(BASE_SPEED * dirX, BASE_SPEED * Math.sin(angle));
+        hits = 0;
     }
 
-    public void bounce() {
-
-    }
-
-    private double getBallSpeedModifier() {
-        return (hits + 1) * BALL_SPEED_FACTOR;
+    public double getBallSpeedModifier() {
+        return Math.pow(BALL_SPEED_FACTOR, hits);
     }
 
     public Rectangle2D getRect(double x, double y) {
@@ -65,6 +63,10 @@ public class Ball implements IPositionable {
     public void setVelocity(double vx, double vy) {
         this.vx = vx;
         this.vy = vy;
+    }
+
+    public void incrementHits() {
+        hits++;
     }
 
     public double getVelocityX() {
